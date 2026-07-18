@@ -297,6 +297,14 @@
     .app.day #railR { display:flex; flex-direction:column; }
   }
 
+  /* ── right-rail interactivity ── */
+  .cal-grid .d[data-day] { cursor:pointer; }
+  .cal-grid .d[data-day]:not(.today):hover { background:rgba(255,255,255,.08); }
+  .cal-grid .d.picked { box-shadow:inset 0 0 0 1.5px #0a84ff; }
+  .evrow.muted { color:#71737c; }
+  .pri.gray { background:rgba(255,255,255,.28); }
+  #todoMore, #pkgMore { display:none; }
+
   /* toast */
   #toast {
     position:fixed; left:50%; bottom:360px; transform:translateX(-50%) translateY(8px);
@@ -386,36 +394,22 @@
 
       <div class="box">
         <div class="box-head"><span class="emoji">🗓️</span><span class="t">July 2026</span></div>
-        <div class="cal-grid">
-          <span class="dow">S</span><span class="dow">M</span><span class="dow">T</span><span class="dow">W</span><span class="dow">T</span><span class="dow">F</span><span class="dow">S</span>
-          <span class="d"></span><span class="d"></span><span class="d"></span><span class="d">1</span><span class="d">2</span><span class="d">3</span><span class="d">4</span>
-          <span class="d">5</span><span class="d">6</span><span class="d">7</span><span class="d">8</span><span class="d">9</span><span class="d">10</span><span class="d">11</span>
-          <span class="d">12</span><span class="d">13</span><span class="d">14</span><span class="d">15</span><span class="d">16</span><span class="d">17</span><span class="d today">18</span>
-          <span class="d">19</span><span class="d evt">20</span><span class="d">21</span><span class="d evt">22</span><span class="d">23</span><span class="d">24</span><span class="d">25</span>
-          <span class="d">26</span><span class="d">27</span><span class="d">28</span><span class="d">29</span><span class="d">30</span><span class="d">31</span><span class="d"></span>
-        </div>
-        <div class="evrow"><span class="evdot blue"></span><span><b>Mon 20</b> · Supplier call — Pinnacle, 2 PM</span></div>
-        <div class="evrow"><span class="evdot amber"></span><span><b>Wed 22</b> · Payroll runs</span></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div id="calEvents"></div>
       </div>
 
       <div class="box">
-        <div class="box-head"><span class="emoji">✅</span><span class="t">To-Do — High Priority</span><span class="count gray">3</span></div>
-        <div class="box-cap">synced from your master list</div>
-        <div class="rows">
-          <div class="todo"><span class="chk">✓</span><span class="txt">Approve Pinnacle invoice — PO-0026</span><span class="pri red"></span></div>
-          <div class="todo"><span class="chk">✓</span><span class="txt">CCB transport manifest for Monday's run</span><span class="pri red"></span></div>
-          <div class="todo"><span class="chk">✓</span><span class="txt">Reply to Russell (Biohazard intro)</span><span class="pri amber"></span></div>
-        </div>
+        <div class="box-head" id="todoHead"><span class="emoji">✅</span><span class="t">To-Do</span><span class="count gray" id="todoCount"></span><span class="chev" id="todoChev">›</span></div>
+        <div class="box-cap">high priority first · synced from your master list</div>
+        <div class="rows" id="todoRows"></div>
+        <div class="more" id="todoMore"></div>
       </div>
 
       <div class="box">
-        <div class="box-head"><span class="emoji">🚚</span><span class="t">Incoming Packages</span><span class="count gray">3</span></div>
+        <div class="box-head" id="pkgHead"><span class="emoji">🚚</span><span class="t">Incoming Packages</span><span class="count gray" id="pkgCount"></span><span class="chev" id="pkgChev">›</span></div>
         <div class="box-cap">agent watches these from your mail</div>
-        <div class="rows">
-          <div class="pkg"><span class="ico">📦</span><div class="col"><div class="n">Uline — shipping supplies</div><div class="s">UPS · out for delivery</div></div><span class="eta today">Today 7 PM</span></div>
-          <div class="pkg"><span class="ico">🚛</span><div class="col"><div class="n">Pinnacle Valley — PO-0026</div><div class="s">LTL freight · in transit</div></div><span class="eta soon">Mon</span></div>
-          <div class="pkg"><span class="ico">✉️</span><div class="col"><div class="n">Label stock reorder</div><div class="s">USPS · shipped</div></div><span class="eta later">Tue</span></div>
-        </div>
+        <div class="rows" id="pkgRows"></div>
+        <div class="more" id="pkgMore"></div>
       </div>
 
     </div>
@@ -652,8 +646,88 @@ $("catStack").addEventListener("click", ev => {
   }
 });
 
-document.querySelectorAll(".todo").forEach(t =>
-  t.addEventListener("click", () => t.classList.toggle("done")));
+/* ── right rail: calendar / todos / packages ── */
+const TODOS = [
+  { t:"Approve Pinnacle invoice — PO-0026", p:"red" },
+  { t:"CCB transport manifest for Monday's run", p:"red" },
+  { t:"Reply to Russell (Biohazard intro)", p:"amber" },
+  { t:"Order pectin restock before Thursday", p:"amber" },
+  { t:"Sign off Q3 label proofs", p:"amber" },
+  { t:"Book compressor service", p:"gray" },
+  { t:"Update wholesale price sheet", p:"gray" },
+  { t:"Clean out sample fridge", p:"gray" }
+];
+const PKGS = [
+  { i:"📦", n:"Uline — shipping supplies", s:"UPS · out for delivery", eta:"Today 7 PM", cls:"today" },
+  { i:"🚛", n:"Pinnacle Valley — PO-0026", s:"LTL freight · in transit", eta:"Mon", cls:"soon" },
+  { i:"✉️", n:"Label stock reorder", s:"USPS · shipped", eta:"Tue", cls:"later" },
+  { i:"🧤", n:"Amazon — shop towels & gloves", s:"ordered · processing", eta:"Wed", cls:"later" },
+  { i:"🔧", n:"Grainger — pump fittings", s:"UPS · in transit", eta:"Wed", cls:"later" },
+  { i:"🧪", n:"Lab supply co-op order", s:"USPS · label created", eta:"Thu", cls:"later" }
+];
+const EVDAYS = {
+  20: [["blue", "Supplier call — Pinnacle, 2 PM"]],
+  22: [["amber", "Payroll runs"]]
+};
+const DOWN = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const doneTodos = new Set();
+const rExpanded = new Set();
+let pickedDay = null;
+const RCAP = 3;
+
+function renderCal(){
+  let h = ["S","M","T","W","T","F","S"].map(d => `<span class="dow">${d}</span>`).join("");
+  h += `<span class="d"></span>`.repeat(3);
+  for(let d = 1; d <= 31; d++){
+    const cls = ["d", d === 18 ? "today" : "", EVDAYS[d] ? "evt" : "", d === pickedDay ? "picked" : ""].filter(Boolean).join(" ");
+    h += `<span class="${cls}" data-day="${d}">${d}</span>`;
+  }
+  $("calGrid").innerHTML = h + `<span class="d"></span>`;
+  const rowFor = d => (EVDAYS[d] || []).map(e =>
+    `<div class="evrow"><span class="evdot ${e[0]}"></span><span><b>${DOWN[(d + 2) % 7]} ${d}</b> · ${e[1]}</span></div>`).join("");
+  $("calEvents").innerHTML = pickedDay == null
+    ? Object.keys(EVDAYS).map(d => rowFor(+d)).join("")
+    : (EVDAYS[pickedDay] ? rowFor(pickedDay)
+       : `<div class="evrow muted"><span class="evdot" style="background:transparent"></span><span><b>${DOWN[(pickedDay + 2) % 7]} ${pickedDay}</b> · nothing scheduled</span></div>`);
+}
+
+function renderSide(){
+  const tExp = rExpanded.has("todo");
+  $("todoCount").textContent = TODOS.length;
+  $("todoChev").className = "chev" + (tExp ? " open" : "");
+  $("todoRows").className = "rows" + (tExp ? " exp" : "");
+  $("todoRows").innerHTML = (tExp ? TODOS : TODOS.slice(0, RCAP)).map((t, i) =>
+    `<div class="todo${doneTodos.has(i) ? " done" : ""}" data-i="${i}"><span class="chk">✓</span><span class="txt">${t.t}</span><span class="pri ${t.p}"></span></div>`).join("");
+  $("todoMore").style.display = (tExp || TODOS.length <= RCAP) ? "none" : "block";
+  $("todoMore").textContent = `${TODOS.length - RCAP} more…`;
+
+  const pExp = rExpanded.has("pkg");
+  $("pkgCount").textContent = PKGS.length;
+  $("pkgChev").className = "chev" + (pExp ? " open" : "");
+  $("pkgRows").className = "rows" + (pExp ? " exp" : "");
+  $("pkgRows").innerHTML = (pExp ? PKGS : PKGS.slice(0, RCAP)).map(p =>
+    `<div class="pkg"><span class="ico">${p.i}</span><div class="col"><div class="n">${p.n}</div><div class="s">${p.s}</div></div><span class="eta ${p.cls}">${p.eta}</span></div>`).join("");
+  $("pkgMore").style.display = (pExp || PKGS.length <= RCAP) ? "none" : "block";
+  $("pkgMore").textContent = `${PKGS.length - RCAP} more…`;
+}
+
+function toggleR(id){ rExpanded.has(id) ? rExpanded.delete(id) : rExpanded.add(id); renderSide(); }
+$("todoHead").addEventListener("click", () => toggleR("todo"));
+$("pkgHead").addEventListener("click", () => toggleR("pkg"));
+$("todoMore").addEventListener("click", () => toggleR("todo"));
+$("pkgMore").addEventListener("click", () => toggleR("pkg"));
+$("todoRows").addEventListener("click", ev => {
+  const t = ev.target.closest(".todo"); if(!t) return;
+  const i = +t.dataset.i;
+  doneTodos.has(i) ? doneTodos.delete(i) : doneTodos.add(i);
+  renderSide();
+});
+$("calGrid").addEventListener("click", ev => {
+  const d = ev.target.closest(".d"); if(!d || !d.dataset.day) return;
+  const day = +d.dataset.day;
+  pickedDay = (pickedDay === day) ? null : day;
+  renderCal();
+});
 
 $("phoneBar").addEventListener("click", ev => {
   const chip = ev.target.closest(".chip"); if(!chip) return;
@@ -713,6 +787,8 @@ $("newbox").addEventListener("click", () => {
 });
 
 renderRail();
+renderCal();
+renderSide();
 show("scan");
 $("msgs").scrollTop = $("msgs").scrollHeight;
 </script>
