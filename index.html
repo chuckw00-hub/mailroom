@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d0e12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mailroom">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<title>Mailroom — mockup v1</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    background:#0d0e12; color:#f2f3f7; font-size:13px;
+    -webkit-font-smoothing:antialiased; overflow:hidden;
+  }
+  body::before {
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(900px 600px at 12% -5%, rgba(64,96,168,.20), transparent 60%),
+      radial-gradient(1000px 700px at 95% 105%, rgba(38,120,110,.14), transparent 60%);
+  }
+  .app { position:relative; z-index:1; height:100vh; display:flex; flex-direction:column; padding:14px; gap:12px; }
+
+  /* ── titlebar ─────────────────────────────── */
+  .titlebar {
+    height:46px; flex:0 0 46px; display:flex; align-items:center; gap:14px; padding:0 16px;
+    background:rgba(28,30,38,.82); backdrop-filter:blur(28px) saturate(1.4);
+    border:1px solid rgba(255,255,255,.07); border-radius:12px;
+  }
+  .lights { display:flex; gap:8px; }
+  .lights span { width:12px; height:12px; border-radius:50%; }
+  .lights .r{background:#ff5f57}.lights .y{background:#febc2e}.lights .g{background:#28c840}
+  .titlebar .name { font-size:14px; font-weight:600; letter-spacing:-.2px; }
+  .acct {
+    font-size:11.5px; color:#a2a4ad; background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.06); padding:4px 10px; border-radius:999px;
+  }
+  .spacer { flex:1; }
+  .agent-chip {
+    display:flex; align-items:center; gap:7px; font-size:11.5px; color:#a2a4ad;
+    background:rgba(48,209,88,.08); border:1px solid rgba(48,209,88,.22);
+    padding:5px 12px; border-radius:999px;
+  }
+  .agent-chip b { color:#e9f9ee; font-weight:600; }
+  .dot { width:7px; height:7px; border-radius:50%; background:#30d158; box-shadow:0 0 6px rgba(48,209,88,.8); }
+
+  /* ── layout ───────────────────────────────── */
+  .main { flex:1; display:grid; grid-template-columns:280px 1fr 280px; gap:12px; min-height:0; }
+  @media (max-width:1080px){ #railR{ display:none; } .main{ grid-template-columns:280px 1fr; } }
+
+  /* ── rail (category boxes) ────────────────── */
+  .rail { display:flex; flex-direction:column; gap:10px; overflow-y:auto; min-height:0; padding-right:2px; }
+  .rail::-webkit-scrollbar { width:8px; }
+  .rail::-webkit-scrollbar-thumb { background:rgba(255,255,255,.10); border-radius:4px; }
+  .box {
+    background:rgba(28,30,38,.82); backdrop-filter:blur(28px) saturate(1.4);
+    border:1px solid rgba(255,255,255,.07); border-radius:12px; padding:10px 10px 6px;
+  }
+  .box-head { display:flex; align-items:center; gap:8px; padding:2px 6px 8px; }
+  .box-head .emoji { font-size:13px; }
+  .box-head .t { font-size:13px; font-weight:600; letter-spacing:-.1px; flex:1; }
+  .count {
+    font-size:11px; font-weight:700; color:#fff; background:#0a84ff;
+    min-width:22px; text-align:center; padding:2px 7px; border-radius:999px;
+  }
+  .count.red { background:#ff453a; }
+  .count.gray { background:rgba(255,255,255,.12); color:#c7c8cf; }
+  .box-cap { font-size:10.5px; color:#8e8f98; padding:0 6px 8px; margin-top:-4px; }
+  .box-cap.new { color:#30d158; }
+  .rows { display:flex; flex-direction:column; }
+  .row {
+    display:flex; align-items:center; gap:9px; padding:8px 8px; border-radius:8px;
+    cursor:pointer; user-select:none;
+  }
+  .row:hover { background:rgba(255,255,255,.05); }
+  .row .u { width:8px; flex:0 0 8px; height:8px; border-radius:50%; background:transparent; }
+  .row.unread .u { background:#0a84ff; }
+  .row .col { flex:1; min-width:0; }
+  .row .from { font-size:12.5px; font-weight:600; letter-spacing:-.1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .subj { font-size:11.5px; color:#9a9aa2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+  .row .when { font-size:10.5px; color:#71737c; flex:0 0 auto; }
+  .row.sel { background:linear-gradient(180deg,#0a84ff,#0066d6); }
+  .row.sel .from, .row.sel .when { color:#fff; }
+  .row.sel .subj { color:rgba(255,255,255,.82); }
+  .row.sel .u { background:#fff; }
+  .more { font-size:11px; color:#71737c; padding:4px 8px 8px; cursor:pointer; }
+  .more:hover { color:#9cc5f5; }
+  #catStack { display:flex; flex-direction:column; gap:10px; }
+  .box-head { cursor:pointer; }
+  .chev {
+    color:#71737c; font-size:14px; font-weight:600; line-height:1; padding:0 2px;
+    transform:rotate(0deg); transition:transform .18s ease, color .18s ease;
+  }
+  .chev.open { transform:rotate(90deg); color:#9cc5f5; }
+  .rows.exp { max-height:45vh; overflow-y:auto; padding-right:2px; }
+  .rows.exp::-webkit-scrollbar { width:7px; }
+  .rows.exp::-webkit-scrollbar-thumb { background:rgba(255,255,255,.10); border-radius:4px; }
+  .newbox {
+    border:1.5px dashed rgba(255,255,255,.14); background:transparent; border-radius:12px;
+    padding:12px; text-align:center; color:#8e8f98; font-size:12px; cursor:pointer; flex:0 0 auto;
+  }
+  .newbox:hover { border-color:rgba(10,132,255,.5); color:#c9dcf5; background:rgba(10,132,255,.05); }
+  .newbox b { color:#0a84ff; font-weight:600; }
+
+  /* ── center column ────────────────────────── */
+  .center { display:grid; grid-template-rows:1fr 320px; gap:12px; min-height:0; }
+
+  /* reading pane */
+  .reader {
+    background:rgba(28,30,38,.82); backdrop-filter:blur(28px) saturate(1.4);
+    border:1px solid rgba(255,255,255,.07); border-radius:14px;
+    display:flex; flex-direction:column; min-height:0; overflow:hidden;
+  }
+  .r-head { padding:18px 22px 14px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; gap:14px; }
+  .avatar {
+    width:42px; height:42px; flex:0 0 42px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(160deg,#5b6472,#3b414c); font-size:15px; font-weight:600; color:#eef0f4;
+  }
+  .r-who { flex:1; min-width:0; }
+  .r-from { font-size:15.5px; font-weight:600; letter-spacing:-.2px; }
+  .r-subj { font-size:13px; color:#c7c8cf; margin-top:2px; }
+  .r-to { font-size:11.5px; color:#71737c; margin-top:3px; }
+  .r-meta { text-align:right; flex:0 0 auto; }
+  .r-icons { display:flex; gap:6px; justify-content:flex-end; margin-bottom:8px; }
+  .icon-btn {
+    width:28px; height:28px; border-radius:7px; border:none; cursor:pointer;
+    background:rgba(255,255,255,.06); color:#a2a4ad; display:flex; align-items:center; justify-content:center;
+  }
+  .icon-btn:hover { background:rgba(255,255,255,.11); color:#e8e9ee; }
+  .icon-btn svg { width:14px; height:14px; stroke:currentColor; stroke-width:1.8; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .r-date { font-size:11.5px; color:#71737c; }
+  .r-cat {
+    display:inline-block; font-size:10.5px; font-weight:600; color:#9cc5f5;
+    background:rgba(10,132,255,.13); border:1px solid rgba(10,132,255,.28);
+    padding:2px 9px; border-radius:999px; margin-top:6px;
+  }
+  .r-body { flex:1; overflow-y:auto; padding:18px 22px 24px; }
+  .r-body::-webkit-scrollbar { width:8px; }
+  .r-body::-webkit-scrollbar-thumb { background:rgba(255,255,255,.10); border-radius:4px; }
+
+  .agent-note {
+    display:flex; align-items:center; gap:10px; margin-bottom:16px;
+    background:rgba(10,132,255,.10); border:1px solid rgba(10,132,255,.26);
+    border-radius:10px; padding:10px 12px;
+  }
+  .agent-note .spark { font-size:14px; }
+  .agent-note .txt { flex:1; font-size:12.5px; color:#cfe2f9; line-height:1.4; }
+  .agent-note .txt b { color:#fff; }
+  .pill {
+    border:none; cursor:pointer; font-size:11.5px; font-weight:600; padding:6px 13px; border-radius:999px;
+    background:#0a84ff; color:#fff; flex:0 0 auto;
+  }
+  .pill.ghost { background:rgba(255,255,255,.08); color:#c7c8cf; }
+  .pill:hover { filter:brightness(1.12); }
+
+  .mail-text { font-size:13.5px; line-height:1.6; color:#dddee4; max-width:640px; }
+  .mail-text p { margin-bottom:12px; }
+  .mail-text a { color:#409cff; text-decoration:underline; }
+  .mail-text .sig { color:#8e8f98; }
+  .attach {
+    display:inline-flex; align-items:center; gap:12px; margin-top:6px;
+    background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.08);
+    border-radius:12px; padding:12px 14px; cursor:pointer;
+  }
+  .attach:hover { background:rgba(255,255,255,.08); }
+  .attach .fico {
+    width:38px; height:46px; border-radius:6px; background:#fff; position:relative;
+    display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px;
+  }
+  .attach .fico span { font-size:8.5px; font-weight:800; color:#d43f34; letter-spacing:.3px; }
+  .attach .fname { font-size:12.5px; font-weight:600; }
+  .attach .fsize { font-size:11px; color:#8e8f98; margin-top:2px; }
+
+  /* ── agent dock ───────────────────────────── */
+  .dock {
+    background:rgba(28,30,38,.82); backdrop-filter:blur(28px) saturate(1.4);
+    border:1px solid rgba(255,255,255,.07); border-radius:14px;
+    display:flex; flex-direction:column; min-height:0; overflow:hidden;
+  }
+  .d-head { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,.07); }
+  .d-ava {
+    width:30px; height:30px; border-radius:50%; flex:0 0 30px;
+    background:linear-gradient(150deg,#0a84ff,#0055c9); display:flex; align-items:center; justify-content:center;
+    font-size:14px; color:#fff;
+  }
+  .d-name { font-size:13px; font-weight:600; }
+  .d-sub { font-size:10.5px; color:#8e8f98; margin-top:1px; }
+  .d-status { margin-left:auto; display:flex; align-items:center; gap:6px; font-size:11px; color:#30d158; }
+  .msgs { flex:1; overflow-y:auto; padding:14px 16px 6px; display:flex; flex-direction:column; gap:10px; }
+  .msgs::-webkit-scrollbar { width:8px; }
+  .msgs::-webkit-scrollbar-thumb { background:rgba(255,255,255,.10); border-radius:4px; }
+  .msg { max-width:74%; display:flex; flex-direction:column; }
+  .msg .bubble { padding:8px 13px; border-radius:16px; font-size:12.5px; line-height:1.45; }
+  .msg .t { font-size:9.5px; color:#71737c; margin-top:3px; padding:0 6px; }
+  .msg.agent { align-self:flex-start; }
+  .msg.agent .bubble { background:#2c2e37; color:#e6e7ec; border-bottom-left-radius:5px; }
+  .msg.me { align-self:flex-end; align-items:flex-end; }
+  .msg.me .bubble { background:linear-gradient(180deg,#0a84ff,#0066d6); color:#fff; border-bottom-right-radius:5px; }
+  .d-input { display:flex; align-items:center; gap:10px; padding:12px 14px; border-top:1px solid rgba(255,255,255,.07); }
+  .d-input input {
+    flex:1; background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.09);
+    border-radius:999px; padding:9px 16px; font-size:13px; color:#f2f3f7; outline:none;
+    font-family:inherit;
+  }
+  .d-input input::placeholder { color:#71737c; }
+  .d-input input:focus { border-color:rgba(10,132,255,.55); }
+  .send {
+    width:32px; height:32px; flex:0 0 32px; border-radius:50%; border:none; cursor:pointer;
+    background:#0a84ff; color:#fff; display:flex; align-items:center; justify-content:center;
+  }
+  .send:hover { background:#2492ff; }
+  .send svg { width:15px; height:15px; stroke:#fff; stroke-width:2.4; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+
+  /* ── right rail: calendar / todos / packages ── */
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; padding:0 4px 6px; }
+  .cal-grid .dow { font-size:9.5px; font-weight:600; color:#71737c; text-align:center; padding:3px 0 6px; }
+  .cal-grid .d {
+    width:27px; height:27px; margin:0 auto; border-radius:50%; position:relative;
+    display:flex; align-items:center; justify-content:center; font-size:11.5px; color:#c7c8cf;
+  }
+  .cal-grid .d.today { background:#0a84ff; color:#fff; font-weight:700; }
+  .cal-grid .d.evt::after {
+    content:""; position:absolute; bottom:2.5px; left:50%; transform:translateX(-50%);
+    width:3.5px; height:3.5px; border-radius:50%; background:#0a84ff;
+  }
+  .evrow { display:flex; align-items:center; gap:8px; font-size:11.5px; color:#a2a4ad; padding:5px 8px 0; }
+  .evrow:last-child { padding-bottom:8px; }
+  .evdot { width:7px; height:7px; border-radius:2px; flex:0 0 7px; }
+  .evdot.blue { background:#0a84ff; } .evdot.amber { background:#ffd60a; }
+  .evrow b { color:#dddee4; font-weight:600; }
+
+  .todo { display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px; cursor:pointer; user-select:none; }
+  .todo:hover { background:rgba(255,255,255,.05); }
+  .todo .chk {
+    width:17px; height:17px; flex:0 0 17px; border-radius:50%; border:1.5px solid rgba(255,255,255,.28);
+    display:flex; align-items:center; justify-content:center; font-size:10px; color:transparent;
+  }
+  .todo.done .chk { background:#30d158; border-color:#30d158; color:#fff; }
+  .todo .txt { flex:1; font-size:12.5px; line-height:1.35; }
+  .todo.done .txt { text-decoration:line-through; color:#71737c; }
+  .pri { width:8px; height:8px; border-radius:50%; flex:0 0 8px; }
+  .pri.red { background:#ff453a; } .pri.amber { background:#ffd60a; }
+
+  .pkg { display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px; }
+  .pkg:hover { background:rgba(255,255,255,.05); }
+  .pkg .ico { font-size:16px; flex:0 0 auto; }
+  .pkg .col { flex:1; min-width:0; }
+  .pkg .n { font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pkg .s { font-size:11px; color:#8e8f98; margin-top:1px; }
+  .eta { font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px; flex:0 0 auto; }
+  .eta.today { color:#30d158; background:rgba(48,209,88,.13); border:1px solid rgba(48,209,88,.3); }
+  .eta.soon { color:#6db2ff; background:rgba(10,132,255,.13); border:1px solid rgba(10,132,255,.3); }
+  .eta.later { color:#a2a4ad; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.09); }
+
+  /* ── phone chrome (hidden on desktop) ── */
+  #phoneBar, #phoneList { display:none; }
+  .grab { display:none; }
+
+  @media (max-width:700px){
+    body { overflow:auto; }
+    .app { height:auto; min-height:100vh; padding:calc(10px + env(safe-area-inset-top)) 10px calc(88px + env(safe-area-inset-bottom)); gap:10px; }
+    .titlebar { height:42px; flex:0 0 42px; padding:0 14px; }
+    .lights, .acct, .chip-extra { display:none; }
+    .main { display:flex; flex-direction:column; gap:10px; }
+    #rail, #railR { display:none; }
+    .center { display:flex; flex-direction:column; gap:10px; min-height:0; }
+
+    #phoneBar { display:flex; gap:8px; overflow-x:auto; padding:2px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+    #phoneBar::-webkit-scrollbar { display:none; }
+    .chip { flex:0 0 auto; display:flex; align-items:center; gap:7px; padding:9px 14px; border-radius:999px;
+      background:rgba(28,30,38,.82); border:1px solid rgba(255,255,255,.08);
+      font-size:12.5px; font-weight:600; color:#c7c8cf; cursor:pointer; user-select:none; }
+    .chip .cnt { font-size:10.5px; font-weight:700; background:rgba(255,255,255,.12); color:#c7c8cf; padding:1px 7px; border-radius:999px; }
+    .chip.red .cnt { background:#ff453a; color:#fff; }
+    .chip.active { background:linear-gradient(180deg,#0a84ff,#0066d6); border-color:transparent; color:#fff; }
+    .chip.active .cnt { background:rgba(255,255,255,.25); color:#fff; }
+
+    #phoneList { display:block; max-height:30vh; overflow-y:auto; }
+    .agent-note { flex-wrap:wrap; }
+    .agent-note .txt { flex:1 1 calc(100% - 26px); }
+    .reader { min-height:44vh; }
+    .r-body { overflow:visible; }
+    .r-head { padding:14px 16px 12px; }
+
+    .dock { position:fixed; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom));
+      height:58px; z-index:40; box-shadow:0 10px 34px rgba(0,0,0,.55); transition:height .28s ease; }
+    .dock.open { height:72vh; }
+    .grab { display:block; margin-left:10px; color:#71737c; font-size:13px; transition:transform .28s ease; }
+    .dock.open .grab { transform:rotate(180deg); }
+
+    .app.day .reader, .app.day #phoneList { display:none; }
+    .app.day #railR { display:flex; flex-direction:column; }
+  }
+
+  /* toast */
+  #toast {
+    position:fixed; left:50%; bottom:360px; transform:translateX(-50%) translateY(8px);
+    background:rgba(20,22,28,.95); border:1px solid rgba(255,255,255,.12);
+    padding:9px 18px; border-radius:999px; font-size:12.5px; color:#e6e7ec;
+    opacity:0; pointer-events:none; transition:all .25s ease; z-index:50;
+  }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  #toast b { color:#30d158; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="titlebar">
+    <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="name">Mailroom</div>
+    <div class="acct">VT Herbal · chuck@vtherbalessentials.com</div>
+    <div class="spacer"></div>
+    <div class="agent-chip"><span class="dot"></span><b>Agent online</b><span class="chip-extra">&nbsp;· filed 11 overnight</span></div>
+  </div>
+
+  <div class="main">
+
+    <!-- ── category rail (rendered by JS) ── -->
+    <div class="rail" id="rail">
+      <div id="catStack"></div>
+      <div class="newbox" id="newbox">＋ <b>New box</b> — just ask the agent</div>
+    </div>
+
+    <!-- ── center ── -->
+    <div class="center">
+
+      <div id="phoneBar"></div>
+      <div id="phoneList" class="box"></div>
+
+      <div class="reader">
+        <div class="r-head">
+          <div class="avatar" id="rAva">CW</div>
+          <div class="r-who">
+            <div class="r-from" id="rFrom">Chuck Waskuch</div>
+            <div class="r-subj" id="rSubj">[Scan] 2026-07-16 14:36</div>
+            <div class="r-to" id="rTo">To: Chuck Waskuch</div>
+          </div>
+          <div class="r-meta">
+            <div class="r-icons">
+              <button class="icon-btn" title="Reply"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v4"/></svg></button>
+              <button class="icon-btn" title="Forward"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0-6 6v4"/></svg></button>
+              <button class="icon-btn" title="Archive"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg></button>
+              <button class="icon-btn" title="Flag"><svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h13l-3 4 3 4H5"/></svg></button>
+            </div>
+            <div class="r-date" id="rDate">July 16, 2026 at 2:37 PM</div>
+            <div class="r-cat" id="rCat">Needs You</div>
+          </div>
+        </div>
+        <div class="r-body">
+          <div id="rNote"></div>
+          <div class="mail-text" id="rBody"></div>
+        </div>
+      </div>
+
+      <div class="dock" id="dock">
+        <div class="d-head" id="dockHead">
+          <div class="d-ava">✦</div>
+          <div>
+            <div class="d-name">Mail Agent</div>
+            <div class="d-sub">handling the VT Herbal inbox</div>
+          </div>
+          <div class="d-status"><span class="dot"></span>online</div>
+          <span class="grab">▴</span>
+        </div>
+        <div class="msgs" id="msgs">
+          <div class="msg agent"><div class="bubble">Morning Chuck — 14 in overnight. I filed 11. Two need you: a Capital One payment confirmation and a vendor intro from Biohazard Inc. That scan you sent yourself Thursday is still sitting in Needs You.</div><div class="t">8:02 AM</div></div>
+          <div class="msg me"><div class="bubble">make a box for vendor intros and drop biohazard in there</div><div class="t">8:05 AM</div></div>
+          <div class="msg agent"><div class="bubble">Done — added <b>Vendor Intros</b>, moved Biohazard Inc over, and future first-contact vendors will land there automatically. ✓</div><div class="t">8:05 AM</div></div>
+        </div>
+        <div class="d-input">
+          <input id="chatIn" type="text" placeholder="Tell the agent what to do with your mail…" autocomplete="off">
+          <button class="send" id="sendBtn" title="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── right rail ── -->
+    <div class="rail" id="railR">
+
+      <div class="box">
+        <div class="box-head"><span class="emoji">🗓️</span><span class="t">July 2026</span></div>
+        <div class="cal-grid">
+          <span class="dow">S</span><span class="dow">M</span><span class="dow">T</span><span class="dow">W</span><span class="dow">T</span><span class="dow">F</span><span class="dow">S</span>
+          <span class="d"></span><span class="d"></span><span class="d"></span><span class="d">1</span><span class="d">2</span><span class="d">3</span><span class="d">4</span>
+          <span class="d">5</span><span class="d">6</span><span class="d">7</span><span class="d">8</span><span class="d">9</span><span class="d">10</span><span class="d">11</span>
+          <span class="d">12</span><span class="d">13</span><span class="d">14</span><span class="d">15</span><span class="d">16</span><span class="d">17</span><span class="d today">18</span>
+          <span class="d">19</span><span class="d evt">20</span><span class="d">21</span><span class="d evt">22</span><span class="d">23</span><span class="d">24</span><span class="d">25</span>
+          <span class="d">26</span><span class="d">27</span><span class="d">28</span><span class="d">29</span><span class="d">30</span><span class="d">31</span><span class="d"></span>
+        </div>
+        <div class="evrow"><span class="evdot blue"></span><span><b>Mon 20</b> · Supplier call — Pinnacle, 2 PM</span></div>
+        <div class="evrow"><span class="evdot amber"></span><span><b>Wed 22</b> · Payroll runs</span></div>
+      </div>
+
+      <div class="box">
+        <div class="box-head"><span class="emoji">✅</span><span class="t">To-Do — High Priority</span><span class="count gray">3</span></div>
+        <div class="box-cap">synced from your master list</div>
+        <div class="rows">
+          <div class="todo"><span class="chk">✓</span><span class="txt">Approve Pinnacle invoice — PO-0026</span><span class="pri red"></span></div>
+          <div class="todo"><span class="chk">✓</span><span class="txt">CCB transport manifest for Monday's run</span><span class="pri red"></span></div>
+          <div class="todo"><span class="chk">✓</span><span class="txt">Reply to Russell (Biohazard intro)</span><span class="pri amber"></span></div>
+        </div>
+      </div>
+
+      <div class="box">
+        <div class="box-head"><span class="emoji">🚚</span><span class="t">Incoming Packages</span><span class="count gray">3</span></div>
+        <div class="box-cap">agent watches these from your mail</div>
+        <div class="rows">
+          <div class="pkg"><span class="ico">📦</span><div class="col"><div class="n">Uline — shipping supplies</div><div class="s">UPS · out for delivery</div></div><span class="eta today">Today 7 PM</span></div>
+          <div class="pkg"><span class="ico">🚛</span><div class="col"><div class="n">Pinnacle Valley — PO-0026</div><div class="s">LTL freight · in transit</div></div><span class="eta soon">Mon</span></div>
+          <div class="pkg"><span class="ico">✉️</span><div class="col"><div class="n">Label stock reorder</div><div class="s">USPS · shipped</div></div><span class="eta later">Tue</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const EMAILS = {
+  scan: {
+    from:"Chuck Waskuch", ini:"CW", subj:"[Scan] 2026-07-16 14:36", to:"To: Chuck Waskuch",
+    date:"July 16, 2026 at 2:37 PM", cat:"Needs You",
+    note:{ txt:"This looks like a scanned document you sent yourself. Want me to file it?", pills:[["File to Finance",1],["Leave it",0]] },
+    body:`<p>--<br>Sent with Genius Scan for iOS.<br><a href="#">https://tglapp.com/e/scan</a></p>
+          <div class="attach"><div class="fico"><span>PDF</span></div><div><div class="fname">2026-07-16 14-36.pdf</div><div class="fsize">PDF · 1.2 MB</div></div></div>`
+  },
+  cappay: {
+    from:"Capital One", ini:"C1", subj:"We've received your payment", to:"To: Chuck Waskuch",
+    date:"July 16, 2026 at 9:12 AM", cat:"Needs You",
+    note:{ txt:"Auto-confirmation. I can archive these once they clear — want that as a standing rule?", pills:[["Make it a rule",1],["No thanks",0]] },
+    body:`<p>We've received your payment of <b>$1,250.00</b>.</p><p>It will post to your Platinum Card account within 2 business days. No further action is needed.</p><p class="sig">Thanks for being a Capital One customer.</p>`
+  },
+  ups: {
+    from:"UPS", ini:"U", subj:"Your package is out for delivery", to:"To: Chuck Waskuch",
+    date:"July 18, 2026 at 7:58 AM", cat:"Orders & Tracking", note:null,
+    body:`<p>Your package is <b>out for delivery</b> and should arrive today by 7:00 PM.</p><p>Tracking: <a href="#">1Z 999 AA1 01 2345 6784</a></p><p class="sig">UPS My Choice</p>`
+  },
+  pinnacle: {
+    from:"Pinnacle Valley Farms", ini:"PV", subj:"PO-0026 — invoice & tracking", to:"To: Chuck Waskuch",
+    date:"July 17, 2026 at 4:21 PM", cat:"Orders & Tracking", note:null,
+    body:`<p>Hi Chuck,</p><p>Invoice and tracking for PO-0026 are attached. Freight picked up this afternoon — ETA Monday.</p><p class="sig">— Pinnacle Valley Farms</p>
+          <div class="attach"><div class="fico"><span>PDF</span></div><div><div class="fname">PV-invoice-0026.pdf</div><div class="fsize">PDF · 340 KB</div></div></div>`
+  },
+  uline: {
+    from:"Uline", ini:"UL", subj:"Shipment confirmation — order 8829314", to:"To: Chuck Waskuch",
+    date:"July 17, 2026 at 11:05 AM", cat:"Orders & Tracking", note:null,
+    body:`<p>Your order <b>8829314</b> has shipped.</p><p>1 carton · arriving Tuesday via UPS Ground.</p><p class="sig">Uline Shipping Supplies</p>`
+  },
+  captxn: {
+    from:"Capital One", ini:"C1", subj:"A new transaction was charged to your account", to:"To: Chuck Waskuch",
+    date:"July 16, 2026 at 1:30 PM", cat:"Finance", note:null,
+    body:`<p>A purchase was charged to your account.</p><p>View posted transaction details by signing in. About your Platinum Card ending in 0261.</p><p class="sig">Capital One</p>`
+  },
+  capsched: {
+    from:"Capital One", ini:"C1", subj:"Your payment of $1,250.00 is scheduled", to:"To: Chuck Waskuch",
+    date:"July 16, 2026 at 8:15 AM", cat:"Finance", note:null,
+    body:`<p>Your payment of <b>$1,250.00</b> is scheduled for Jul 16, 2026.</p><p class="sig">Capital One</p>`
+  },
+  biohazard: {
+    from:"Biohazard Inc", ini:"BI", subj:"Introducing Russell — Your Biohazard Connection!", to:"To: Chuck Waskuch",
+    date:"July 16, 2026 at 8:44 AM", cat:"Vendor Intros",
+    note:{ txt:"First-time sender. Filed under <b>Vendor Intros</b> per this morning's rule.", pills:[["Looks right",0]] },
+    body:`<p>Hi Chuck,</p><p>I'm Russell — your new connection at Biohazard Inc. 10+ years in the game, and I'd love 15 minutes to show you what we can do for VT Herbal.</p><p class="sig">Russell · Biohazard Inc</p>`
+  },
+  zapier: {
+    from:"Zapier", ini:"Z", subj:"Try out AI workflows in 3 easy steps", to:"To: Chuck Waskuch",
+    date:"July 16, 2026 at 7:02 AM", cat:"Newsletters", note:null,
+    body:`<p>Combining AI and automation is easier than you think.</p><p>Log in to see how to add AI to your Zapier workflows — unless you've already started.</p><p class="sig">The Zapier Team</p>`
+  },
+  dolce: {
+    from:"Dolce Flav", ini:"DF", subj:"Cozy Up With Tangy Tamarind Rasam", to:"To: Chuck Waskuch",
+    date:"July 16, 2026 at 6:40 AM", cat:"Newsletters", note:null,
+    body:`<p>Sour, spicy, savory — and easy to make.</p><p class="sig">Dolce Flav Weekly</p>`
+  },
+  alert360: {
+    from:"Alert 360", ini:"A3", subj:"Charles' system: Front Motion reported a low battery", to:"To: Chuck Waskuch",
+    date:"July 16, 2026 at 5:12 AM", cat:"Everything Else", note:null,
+    body:`<p>The Front Motion sensor reported a <b>low battery</b>.</p><p>View the issue in your Alert 360 dashboard.</p><p class="sig">Alert 360 Monitoring</p>`
+  },
+  asana: {
+    from:"Asana", ini:"As", subj:"You have unread notifications", to:"To: Chuck Waskuch",
+    date:"July 16, 2026 at 4:55 AM", cat:"Everything Else", note:null,
+    body:`<p>Check out the latest from your team.</p><p>Get caught up at upvtherbalessentials.com.</p><p class="sig">Asana</p>`
+  },
+  qb: {
+    from:"QuickBooks", ini:"QB", subj:"Invoice #1042 was paid", to:"To: Chuck Waskuch",
+    date:"July 15, 2026 at 10:12 AM", cat:"Finance", note:null,
+    body:`<p>Invoice <b>#1042</b> was paid in full — $842.50.</p><p class="sig">QuickBooks</p>`
+  },
+  square: {
+    from:"Square", ini:"Sq", subj:"Your weekly summary is ready", to:"To: Chuck Waskuch",
+    date:"July 13, 2026 at 7:00 AM", cat:"Finance", note:null,
+    body:`<p>Gross sales last week: <b>$4,210</b>. Full breakdown in your dashboard.</p><p class="sig">Square</p>`
+  },
+  nrs: {
+    from:"GetNRSFunding.com", ini:"NF", subj:"Big Plans? ⭐ Let's Help Them.", to:"To: Chuck Waskuch",
+    date:"July 16, 2026 at 6:15 AM", cat:"Newsletters", note:null,
+    body:`<p>Help your business move forward — you're prequalified and invited to apply for funding up to $250K.</p><p class="sig">GetNRSFunding.com</p>`
+  },
+  hustle: {
+    from:"The Hustle", ini:"TH", subj:"Tariffs, tomatoes, and a $2B exit", to:"To: Chuck Waskuch",
+    date:"July 15, 2026 at 6:01 AM", cat:"Newsletters", note:null,
+    body:`<p>Today: tariffs squeeze produce margins, and a sleepy logistics startup exits for $2B.</p><p class="sig">The Hustle</p>`
+  },
+  canva: {
+    from:"Canva", ini:"Ca", subj:"Fresh templates for July", to:"To: Chuck Waskuch",
+    date:"July 15, 2026 at 5:30 AM", cat:"Newsletters", note:null,
+    body:`<p>New seasonal templates just dropped — menus, flyers, and social posts.</p><p class="sig">Canva</p>`
+  },
+  mailchimp: {
+    from:"Mailchimp", ini:"MC", subj:"Subject lines that actually get opens", to:"To: Chuck Waskuch",
+    date:"July 14, 2026 at 9:00 AM", cat:"Newsletters", note:null,
+    body:`<p>Our data team looked at 1B sends. Here's what works in 2026.</p><p class="sig">Mailchimp</p>`
+  },
+  chamber: {
+    from:"VT Chamber", ini:"VC", subj:"July member mixer — RSVP", to:"To: Chuck Waskuch",
+    date:"July 14, 2026 at 8:15 AM", cat:"Newsletters", note:null,
+    body:`<p>Join us Thursday the 30th, 5–7 PM, Burlington waterfront. RSVP by Friday.</p><p class="sig">Vermont Chamber of Commerce</p>`
+  },
+  shopify: {
+    from:"Shopify", ini:"Sh", subj:"5 ways to boost summer sales", to:"To: Chuck Waskuch",
+    date:"July 13, 2026 at 7:45 AM", cat:"Newsletters", note:null,
+    body:`<p>Summer slump? These five plays are working for merchants right now.</p><p class="sig">Shopify</p>`
+  },
+  notion: {
+    from:"Notion", ini:"No", subj:"What's new in Notion — July", to:"To: Chuck Waskuch",
+    date:"July 13, 2026 at 6:20 AM", cat:"Newsletters", note:null,
+    body:`<p>Charts, faster search, and a new home view. See what shipped this month.</p><p class="sig">Notion</p>`
+  },
+  medium: {
+    from:"Medium", ini:"Me", subj:"Daily Digest: stories for you", to:"To: Chuck Waskuch",
+    date:"July 12, 2026 at 6:00 AM", cat:"Newsletters", note:null,
+    body:`<p>Today's picks based on your reading history.</p><p class="sig">Medium Daily Digest</p>`
+  },
+  costco: {
+    from:"Costco", ini:"Co", subj:"Hot buys end Sunday", to:"To: Chuck Waskuch",
+    date:"July 12, 2026 at 5:40 AM", cat:"Newsletters", note:null,
+    body:`<p>Member-only savings on select items — online and in warehouse through Sunday.</p><p class="sig">Costco Wholesale</p>`
+  },
+  leafgrow: {
+    from:"Herb Growers Weekly", ini:"HG", subj:"Powdery mildew season is here", to:"To: Chuck Waskuch",
+    date:"July 11, 2026 at 7:00 AM", cat:"Newsletters", note:null,
+    body:`<p>Humidity's up across the Northeast — prevention checklist inside.</p><p class="sig">Herb Growers Weekly</p>`
+  },
+  google: {
+    from:"Google", ini:"G", subj:"Security alert: new sign-in on a Mac", to:"To: Chuck Waskuch",
+    date:"July 15, 2026 at 3:22 PM", cat:"Everything Else", note:null,
+    body:`<p>A new sign-in on a Mac was detected. If this was you, no action is needed.</p><p class="sig">Google Accounts</p>`
+  },
+  apple: {
+    from:"Apple", ini:"A", subj:"Your receipt from Apple", to:"To: Chuck Waskuch",
+    date:"July 14, 2026 at 12:05 PM", cat:"Everything Else", note:null,
+    body:`<p>Receipt for your recent App Store purchase — $2.99.</p><p class="sig">Apple</p>`
+  }
+};
+
+const WHEN = {
+  scan:"Thu", cappay:"Thu", ups:"7:58 AM", pinnacle:"Fri", uline:"Fri",
+  captxn:"Thu", capsched:"Thu", qb:"Wed", square:"Mon", biohazard:"Thu",
+  zapier:"Thu", dolce:"Thu", nrs:"Thu", hustle:"Wed", canva:"Wed", mailchimp:"Tue",
+  chamber:"Tue", shopify:"Mon", notion:"Mon", medium:"Sun", costco:"Sun", leafgrow:"7/11",
+  alert360:"Thu", asana:"Thu", google:"Wed", apple:"Tue"
+};
+const UNREAD = new Set(["scan","cappay","ups","biohazard","zapier","nrs","alert360"]);
+const CATS = [
+  { id:"needs",  emoji:"🔴", name:"Needs You", badge:"red", rows:["scan","cappay"] },
+  { id:"orders", emoji:"📦", name:"Orders &amp; Tracking", badge:"", rows:["ups","pinnacle","uline"] },
+  { id:"fin",    emoji:"💳", name:"Finance", badge:"", rows:["captxn","capsched","qb","square"] },
+  { id:"vendor", emoji:"🤝", name:"Vendor Intros", badge:"gray", caption:"✦ added by agent · this morning", capClass:"new", rows:["biohazard"] },
+  { id:"news",   emoji:"📣", name:"Newsletters", badge:"gray", rows:["zapier","dolce","nrs","hustle","canva","mailchimp","chamber","shopify","notion","medium","costco","leafgrow"] },
+  { id:"misc",   emoji:"🗂️", name:"Everything Else", badge:"gray", rows:["alert360","asana","google","apple"] }
+];
+const CAP = 3;
+const read = new Set();
+const expanded = new Set();
+let curId = null;
+
+function rowHTML(id){
+  const e = EMAILS[id];
+  const un = UNREAD.has(id) && !read.has(id);
+  return `<div class="row${un ? " unread" : ""}${id === curId ? " sel" : ""}" data-id="${id}"><span class="u"></span><div class="col"><div class="from">${e.from}</div><div class="subj">${e.subj}</div></div><span class="when">${WHEN[id] || ""}</span></div>`;
+}
+function renderRail(){
+  document.getElementById("catStack").innerHTML = CATS.map(c => {
+    const exp = expanded.has(c.id);
+    const rows = exp ? c.rows : c.rows.slice(0, CAP);
+    const hidden = c.rows.length - CAP;
+    return `<div class="box">
+      <div class="box-head" data-cat="${c.id}"><span class="emoji">${c.emoji}</span><span class="t">${c.name}</span><span class="count ${c.badge}">${c.rows.length}</span>${c.rows.length > CAP ? `<span class="chev${exp ? " open" : ""}">›</span>` : ""}</div>
+      ${c.caption ? `<div class="box-cap ${c.capClass || ""}">${c.caption}</div>` : ""}
+      <div class="rows${exp ? " exp" : ""}">${rows.map(rowHTML).join("")}</div>
+      ${!exp && hidden > 0 ? `<div class="more" data-cat="${c.id}">${hidden} more…</div>` : ""}
+    </div>`;
+  }).join("");
+  renderPhone();
+}
+
+const $ = id => document.getElementById(id);
+
+function renderNote(n){
+  if(!n) return "";
+  const pills = n.pills.map(p =>
+    `<button class="pill ${p[1] ? "" : "ghost"}" onclick="toast('${p[0]}')">${p[0]}</button>`).join(" ");
+  return `<div class="agent-note"><span class="spark">✦</span><span class="txt">${n.txt}</span>${pills}</div>`;
+}
+
+function show(id){
+  const e = EMAILS[id]; if(!e) return;
+  curId = id; read.add(id);
+  $("rAva").textContent = e.ini;
+  $("rFrom").textContent = e.from;
+  $("rSubj").textContent = e.subj;
+  $("rTo").textContent = e.to;
+  $("rDate").textContent = e.date;
+  $("rCat").textContent = e.cat;
+  $("rNote").innerHTML = renderNote(e.note);
+  $("rBody").innerHTML = e.body;
+  renderRail();
+}
+
+let curCat = "needs";
+function isDay(){ return document.querySelector(".app").classList.contains("day"); }
+function renderPhone(){
+  const bar = document.getElementById("phoneBar");
+  if(!bar) return;
+  bar.innerHTML =
+    `<div class="chip${isDay() ? " active" : ""}" data-day="1">🗓️ Today</div>` +
+    CATS.map(c =>
+      `<div class="chip${!isDay() && c.id === curCat ? " active" : ""}${c.badge === "red" ? " red" : ""}" data-cat="${c.id}">${c.emoji} ${c.name}<span class="cnt">${c.rows.length}</span></div>`
+    ).join("");
+  const cat = CATS.find(c => c.id === curCat);
+  document.getElementById("phoneList").innerHTML = cat.rows.map(rowHTML).join("");
+}
+
+$("catStack").addEventListener("click", ev => {
+  const row = ev.target.closest(".row");
+  if(row){ show(row.dataset.id); return; }
+  const head = ev.target.closest(".box-head, .more");
+  if(head && head.dataset.cat){
+    const cid = head.dataset.cat;
+    expanded.has(cid) ? expanded.delete(cid) : expanded.add(cid);
+    renderRail();
+  }
+});
+
+document.querySelectorAll(".todo").forEach(t =>
+  t.addEventListener("click", () => t.classList.toggle("done")));
+
+$("phoneBar").addEventListener("click", ev => {
+  const chip = ev.target.closest(".chip"); if(!chip) return;
+  const app = document.querySelector(".app");
+  if(chip.dataset.day){ app.classList.toggle("day"); }
+  else { app.classList.remove("day"); curCat = chip.dataset.cat; }
+  renderRail();
+});
+$("phoneList").addEventListener("click", ev => {
+  const row = ev.target.closest(".row"); if(row) show(row.dataset.id);
+});
+$("dockHead").addEventListener("click", () => {
+  if(window.matchMedia("(max-width:700px)").matches) $("dock").classList.toggle("open");
+});
+
+function toast(action){
+  const t = $("toast");
+  t.innerHTML = `<b>✓</b>&nbsp; ${action} — done`;
+  t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+/* chat */
+const REPLIES = [
+  "On it — I'll set that up and confirm here in a sec. ✓",
+  "Done. Anything else you want routed differently?",
+  "Got it — rule saved. You'll see it take effect on the next sweep. ✓"
+];
+let ri = 0;
+function nowTime(){
+  const d = new Date();
+  let h = d.getHours(), m = String(d.getMinutes()).padStart(2,"0");
+  const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
+  return `${h}:${m} ${ap}`;
+}
+function addMsg(cls, text){
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  div.innerHTML = `<div class="bubble"></div><div class="t">${nowTime()}</div>`;
+  div.querySelector(".bubble").textContent = text;
+  $("msgs").appendChild(div);
+  $("msgs").scrollTop = $("msgs").scrollHeight;
+}
+function sendChat(){
+  const v = $("chatIn").value.trim(); if(!v) return;
+  addMsg("me", v);
+  $("chatIn").value = "";
+  setTimeout(() => addMsg("agent", REPLIES[ri++ % REPLIES.length]), 700);
+}
+$("sendBtn").addEventListener("click", sendChat);
+$("chatIn").addEventListener("keydown", e => { if(e.key === "Enter") sendChat(); });
+
+$("newbox").addEventListener("click", () => {
+  const i = $("chatIn");
+  i.value = "make a new box for ";
+  i.focus();
+});
+
+renderRail();
+show("scan");
+$("msgs").scrollTop = $("msgs").scrollHeight;
+</script>
+</body>
+</html>
